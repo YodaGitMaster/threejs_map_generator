@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octagon Terrain Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #0a0a0a;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            background: #0a0a0a;
+            /* Fallback color if canvas fails */
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 8px;
+            color: #fff;
+            min-width: 280px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        #controls h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a9eff;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #bbb;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            outline: none;
+            border-radius: 2px;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #4a9eff;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .control-group input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .control-group input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .control-group .value-display {
+            display: inline-block;
+            margin-left: 10px;
+            color: #4a9eff;
+            font-weight: 600;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4a9eff;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 5px;
+        }
+
+        button:hover {
+            background: #3a8eef;
+        }
+
+        button:active {
+            background: #2a7edf;
+        }
+
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+            color: #bbb;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="controls">
+        <h2>⚙️ Terrain Controls</h2>
+
+        <div class="control-group">
+            <label>Seed</label>
+            <input type="number" id="seed" value="12345" />
+        </div>
+
+        <div class="control-group">
+            <label>Water Coverage <span class="value-display" id="waterPercentageValue">15%</span></label>
+            <input type="range" id="waterPercentage" min="0" max="100" step="5" value="15" />
+        </div>
+
+        <div class="control-group">
+            <label>Elevation Scale <span class="value-display" id="elevScaleValue">50m</span></label>
+            <input type="range" id="elevScale" min="20" max="300" step="10" value="50" />
+        </div>
+
+        <div class="control-group">
+            <label>Map Size <span class="value-display" id="mapSizeValue">128</span></label>
+            <input type="range" id="mapSize" min="32" max="256" step="16" value="128" />
+        </div>
+
+        <div class="control-group">
+            <label>Forest Coverage <span class="value-display" id="forestPercentageValue">25%</span></label>
+            <input type="range" id="forestPercentage" min="0" max="100" step="5" value="25" />
+        </div>
+
+        <div class="control-group">
+            <label>Camera Mode</label>
+            <select id="cameraMode">
+                <option value="topdown">Top-Down</option>
+                <option value="diagonal">Diagonal</option>
+                <option value="landscape">Landscape</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="cameraAngleGroup">
+            <label>Camera Angle <span class="value-display" id="cameraAngleValue">45°</span></label>
+            <input type="range" id="cameraAngle" min="15" max="75" step="5" value="45" />
+        </div>
+
+        <div class="control-group">
+            <label>Zoom <span class="value-display" id="zoomValue">1.0x</span></label>
+            <input type="range" id="zoomLevel" min="0.3" max="8.0" step="0.1" value="1.0" />
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="enableRotation" checked />
+                Enable Mouse Rotation (Drag to Rotate)
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showFog" checked />
+                Show Fog
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="guideMode" checked />
+                Guide Mode (Plane Low-Poly)
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="lowPolyMode" checked />
+                Low-Poly Style (Flat Shading)
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showSquares" />
+                Show Connector Squares
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showWater" checked />
+                Show Water Surface
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showGrid" />
+                Show Mesh Grid
+            </label>
+        </div>
+
+        <button id="regenerate">🔄 Regenerate Terrain</button>
+        <button id="randomSeed">🎲 Random Seed</button>
+    </div>
+
+    <div id="stats">
+        <div>FPS: <span id="fps">60</span></div>
+        <div>Tiles: <span id="tileCount">0</span></div>
+        <div>Chunks: <span id="chunkCount">0</span></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

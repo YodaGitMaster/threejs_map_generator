@@ -1,0 +1,57 @@
+# .cursor/rules/terrain-octagon.mdc
+# Title: Procedural Terrain (Octagon 4.8.8) — Three.js
+# Scope: Generate ONLY the terrain (no units, no pathfinding, no fog). Visual-first, diversified 3D world.
+# Map Shape: Square world area; visible tiling uses octagons + connector squares (4.8.8). Squares may be hidden.
+## Variables (declare at top of the script/config)
+SEED
+MAP_WIDTH, MAP_HEIGHT          # lattice cells
+OCT_APOTHEM                    # octagon size control (across-flats = 2a)
+ELEVATION_SCALE                # world height scale (meters)
+SEA_LEVEL                      # 0..1 threshold applied on normalized height
+NOISE_ELEV(octaves, freq, gain, lacunarity)
+NOISE_MOIST(octaves, freq, gain, lacunarity)
+NOISE_TEMP(octaves, freq, gain, lacunarity)
+EROSION_ITERATIONS             # hydraulic passes for valleys/rivers
+CHUNK_SIZE                     # cells per chunk for streaming/LOD
+SHOW_SQUARES                   # true: render connectors; false: hide (visual focus on octagons)
+
+────────────────────────────────────────────
+## Technology
+- **Three.js** rendering (WebGL2).
+- **Instanced meshes**: one for octagons, one for squares (if visible).
+- **GPU vertex displacement** from a height texture (heightfield) for smooth 3D relief.
+- **Splat/biome material**: blend grass/rock/sand/snow via slope + biome weights.
+- **Chunking + simple LOD**: cull/reduce detail by camera distance.
+- Optional: water surface at SEA_LEVEL (single plane per chunk).
+
+────────────────────────────────────────────
+## What I Want to Achieve
+- A **natural-looking, fully 3D terrain** that still aligns to an octagon grid.
+- **Diversified territory**: coasts, plains, hills, mountains, wetlands, snow.
+- **Stable performance** on large maps via instancing + chunking.
+- A **reseedable** world for quick iteration on look & feel.
+
+────────────────────────────────────────────
+## Pipeline (no code, main idea)
+1) **Noise Fields** → Generate elevation, moisture, temperature with different seeds/params.
+2) **Normalize & Scale** → Map elevation to [0..1], apply ELEVATION_SCALE for meters.
+3) **Erosion Pass** → Hydraulic iterations carve valleys; keep a flow accumulation map.
+4) **Sea Level** → Mark below-threshold areas as water/coast.
+5) **Biome Classification** → (altitude × moisture × temperature) → biome ID.
+6) **Splat Weights** → Derive texture weights from slope + biome (grass/rock/sand/snow).
+7) **Mesh Build** → Place octagon (and optional square) instances on the lattice.
+8) **GPU Displacement** → Sample height texture per-vertex to push Y; ensure seamless UV.
+9) **Materials** → Apply splat/biome tinting; add optional water material.
+10) **LOD/Cull** → Per-chunk frustum culling; lower density or swap LOD at distance.
+
+────────────────────────────────────────────
+## Outputs (this feature)
+- A Three.js scene with: displaced terrain (octagon-primary), optional water, and biome-based texturing.
+- Controls to **reseed**, tweak **SEA_LEVEL**, and switch **SHOW_SQUARES** on/off.
+- Exportable **height** and **biome** textures for future systems.
+
+────────────────────────────────────────────
+## Notes
+- Keep squares logic-accurate for tiling; hide them if you prefer a pure-octagon visual.
+- Use identical height sampling in slope and shader to avoid seams.
+- Adjust NOISE_* and SEA_LEVEL to quickly “re-theme” the world (archipelago, highlands, deserts).
